@@ -1,9 +1,12 @@
 class Storage:
-    def __init__(self):
-        self._data = {}
+    def __init__(self, redis):
+        self.redis = redis
 
-    def add_link(self, short_link, original_url):
-        self._data[short_link] = original_url
+    async def store_url(self, short_code: str, target_url: str):
+        await self.redis.set(short_code, target_url)
 
-    def get_link(self, short_link):
-        return self._data.get(short_link)
+    async def retrieve_url(self, short_code: str):
+        result = await self.redis.get(short_code)
+        if result:
+            return result.decode("utf-8")
+        return None
