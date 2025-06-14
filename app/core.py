@@ -1,6 +1,7 @@
-import random
-import string
+import hashlib
 
-def generate_short_code(length: int = 6) -> str:
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choices(characters, k=length))
+def generate_short_code(url: str) -> str:
+    # Простая функция генерации кода — взять первые 6 символов md5
+    m = hashlib.md5()
+    m.update(url.encode('utf-8'))
+    return m.hexdigest()[:6]
