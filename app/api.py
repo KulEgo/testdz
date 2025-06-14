@@ -1,26 +1,23 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
 from app.core import generate_short_code
 from app.storage import store_url, retrieve_url
+from pydantic import BaseModel
 
 app = FastAPI()
 
-redis_client = redis.from_url("redis://localhost", decode_responses=True)
+class URLIn(BaseModel):
+    url: str
 
-class URLRequest(BaseModel):
-    target_url: str
-
-@app.post("/api/shorten")
-async def create_short_url(data: URLRequest):
-    short_code = generate_short_code()
-    await store_url(redis_client, short_code, data.target_url)
+@app.post("/shorten")
+async def shorten_url(data: URLIn):
+    short_code = generate_short_code(data.url)
+    await store_url(short_code, data.url)
     return {"short_code": short_code}
 
 @app.get("/{short_code}")
-async def redirect(short_code: str, request: Request):
-    url = await retrieve_url(redis_client, short_code)
-    if url:
-        return RedirectResponse(url, status_code=307)
-    raise HTTPException(status_code=404, detail="URL not found")
+async def redirect(short_code: str):
+    url = await retrieve_url(short_code)
+    if not url:
+        raise HTTPException(status_code=404, detail="URL not found")
+    return {"url": url}
 
