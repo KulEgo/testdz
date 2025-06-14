@@ -1,12 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-import redis.asyncio as redis  # новый современный async redis клиент
+import redis.asyncio as redis 
 
 app = FastAPI()
-
-# Создаем объект Redis клиента глобально, но инициализируем в lifespan
-redis_client = None
+redis_client = redis.from_url("redis://localhost", decode_responses=True)
 
 class ShortenRequest(BaseModel):
     url: str
