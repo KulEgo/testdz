@@ -1,7 +1,9 @@
-storage = {}
+class Storage:
+    def __init__(self):
+        self._data = {}
 
-async def store_url(short_code: str, url: str):
-    storage[short_code] = url
+    def add_link(self, short_link, original_url):
+        self._data[short_link] = original_url
 
-async def retrieve_url(short_code: str) -> str | None:
-    return storage.get(short_code)
+    def get_link(self, short_link):
+        return self._data.get(short_link)
