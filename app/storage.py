@@ -1,8 +1,7 @@
-async def store_url(redis_client, short_code: str, target_url: str):
-    await redis_client.set(short_code, target_url)
+storage = {}
 
-async def retrieve_url(redis_client, short_code: str):
-    result = await redis_client.get(short_code)
-    if result:
-        return result  # Уже строка
-    return None
+async def store_url(short_code: str, url: str):
+    storage[short_code] = url
+
+async def retrieve_url(short_code: str) -> str | None:
+    return storage.get(short_code)
