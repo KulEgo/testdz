@@ -1,42 +1,47 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel, HttpUrl
-import redis.asyncio as redis
-from contextlib import asynccontextmanager
+from redis.asyncio import Redis
+import string
+import random
 
-# Инициализируем redis клиент глобально, чтобы использовать в приложении
-redis_client = None
+app = FastAPI()
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global redis_client
-    redis_client = redis.from_url("redis://localhost", decode_responses=True)
-    yield
-    await redis_client.close()
+redis: Redis | None = None
 
-app = FastAPI(lifespan=lifespan)
-
-class Link(BaseModel):
+class URLRequest(BaseModel):
     url: HttpUrl
 
-async def generate_short_key() -> str:
-    # Пример простой генерации, можно улучшить
-    import secrets, string
-    return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(6))
+def generate_short_id(length: int = 6) -> str:
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+@app.on_event("startup")
+async def startup_event():
+    global redis
+    redis = Redis.from_url("redis://localhost", decode_responses=True)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if redis:
+        await redis.close()
 
 @app.post("/shorten")
-async def shorten(link: Link):
-    key = await generate_short_key()
-    await redis_client.set(key, link.url)
-    return {"short_url": f"http://localhost:8000/{key}"}
+async def shorten_url(request: URLRequest):
+    short_id = generate_short_id()
+    # Проверяем на коллизии
+    while await redis.exists(short_id):
+        short_id = generate_short_id()
+    await redis.set(short_id, request.url)
+    return {"short_url": f"http://localhost:8000/{short_id}"}
 
-@app.get("/{key}")
-async def redirect_to_url(key: str):
-    url = await redis_client.get(key)
-    if url is None:
+@app.get("/{short_id}")
+async def redirect_to_url(short_id: str):
+    url = await redis.get(short_id)
+    if not url:
         raise HTTPException(status_code=404, detail="URL not found")
     return RedirectResponse(url)
 
 @app.get("/")
 async def root():
-    return {"message": "URL Shortener is running."}
+    return {"message": "URL Shortener is running"}
