@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-import redis.asyncio as redis
 from app.core import generate_short_code
 from app.storage import store_url, retrieve_url
 
