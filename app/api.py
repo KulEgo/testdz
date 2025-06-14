@@ -1,19 +1,15 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import aioredis
+from redis.asyncio import Redis
 from .core import generate_short_code
 from .storage import store_url, retrieve_url
 
 app = FastAPI()
 redis = None
 
-class ShortenRequest(BaseModel):
-    target_url: str
-
 @app.on_event("startup")
 async def startup_event():
     global redis
-    redis = await aioredis.from_url("redis://localhost", decode_responses=True)
+    redis = Redis.from_url("redis://localhost", decode_responses=True)
 
 @app.on_event("shutdown")
 async def shutdown_event():
