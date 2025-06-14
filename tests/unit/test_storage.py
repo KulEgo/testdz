@@ -1,12 +1,16 @@
 import pytest
-from unittest.mock import AsyncMock
-from app.storage import store_url, retrieve_url
+from app.storage import Storage
 
-@pytest.mark.asyncio
-async def test_store_and_retrieve_url():
-    fake_redis = AsyncMock()
-    fake_redis.get.return_value = b"https://example.com"
+@pytest.fixture
+def storage():
+    return Storage()
 
-    await store_url(fake_redis, "abc123", "https://example.com")
-    result = await retrieve_url(fake_redis, "abc123")
-    assert result == "https://example.com"
+def test_storage_save_and_get(storage):
+    key = "abc123"
+    url = "https://example.com"
+    storage.save(key, url)
+    assert storage.get(key) == url
+
+def test_storage_get_nonexistent(storage):
+    assert storage.get("nonexistent") is None
+    
