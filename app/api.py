@@ -1,36 +1,37 @@
+import pytest
+from httpx import AsyncClient
+from unittest.mock import AsyncMock, patch
+from app.api import app
 
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel
-import aioredis
-from .core import generate_short_code
-from .storage import store_url, retrieve_url
+@pytest.mark.asyncio
+async def test_create_and_redirect():
+    mock_store = AsyncMock()
+    mock_retrieve = AsyncMock(return_value="https://google.com")
 
-app = FastAPI()
-redis = None
+    with patch("app.api.store_url", mock_store), patch("app.api.retrieve_url", mock_retrieve):
+        with patch("app.api.redis", AsyncMock()):
+            async with AsyncClient(app=app, base_url="http://test") as ac:
+                response = await ac.post("/api/shorten", json={"target_url": "https://google.com"})
+                assert response.status_code == 200
+                data = response.json()
+                assert "short_code" in data
 
-class ShortenRequest(BaseModel):
-    target_url: str
+                redirect = await ac.get(f"/{data['short_code']}", follow_redirects=False)
+                assert redirect.status_code == 307
+                assert redirect.headers["location"] == "https://google.com"
 
-@app.on_event("startup")
-async def startup_event():
-    global redis
-    redis = await aioredis.from_url("redis://localhost", decode_responses=True)
+@pytest.mark.asyncio
+async def test_shorten_invalid_data():
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        response = await ac.post("/api/shorten", json={})
+        assert response.status_code == 422
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    await redis.close()
-
-@app.post("/api/shorten")
-async def shorten_url(request: ShortenRequest):
-    short_code = generate_short_code()
-    await store_url(redis, short_code, request.target_url)
-    return {"short_code": short_code}
-
-@app.get("/{short_code}")
-async def redirect_to_target(short_code: str):
-    url = await retrieve_url(redis, short_code)
-    if url:
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(url=url, status_code=307)
-    raise HTTPException(status_code=404, detail="Short code not found")
-
+@pytest.mark.asyncio
+async def test_redirect_404():
+    with patch("app.api.retrieve_url", new_callable=AsyncMock) as mock_retrieve:
+        mock_retrieve.return_value = None
+        with patch("app.api.redis", AsyncMock()):
+            async with AsyncClient(app=app, base_url="http://test") as ac:
+                response = await ac.get("/nonexistent", follow_redirects=False)
+                assert response.status_code == 404
+                assert response.json() == {"detail": "Short code not found"}
