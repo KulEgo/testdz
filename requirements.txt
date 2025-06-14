@@ -1,0 +1,16 @@
+alembic
+fastapi[all]
+fastapi_users[sqlalchemy]
+fastapi_cache
+aiosqlite
+sqlalchemy
+uvicorn
+pydantic
+pydantic-settings
+dotenv
+asyncpg
+celery
+redis
+psycopg2-binary
+validators
+aioredis
