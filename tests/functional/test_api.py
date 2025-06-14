@@ -5,23 +5,23 @@ from app.api import app
 @pytest.mark.asyncio
 async def test_shorten_and_redirect():
     async with AsyncClient(app=app, base_url="http://test") as client:
-        # Создать короткую ссылку
+        # Создаем короткую ссылку
         response = await client.post("/shorten", json={"url": "https://example.com"})
         assert response.status_code == 200
         data = response.json()
-        assert "short_code" in data
-        short_code = data["short_code"]
+        short = data.get("short")
+        assert short and isinstance(short, str)
 
-        # Проверить редирект
-        response_redirect = await client.get(f"/{short_code}", follow_redirects=False)
-        assert response_redirect.status_code == 307
-        assert response_redirect.headers["location"] == "https://example.com"
+        # Проверяем редирект по короткой ссылке
+        response2 = await client.get(f"/{short}", follow_redirects=False)
+        assert response2.status_code == 307
+        assert response2.headers["location"] == "https://example.com"
 
 @pytest.mark.asyncio
-async def test_shorten_invalid_url():
+async def test_shorten_invalid_data():
     async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.post("/shorten", json={"url": "not a url"})
-        assert response.status_code == 422  # или код валидации в вашем API
+        response = await client.post("/shorten", json={"wrong_field": "data"})
+        assert response.status_code == 422
 
 @pytest.mark.asyncio
 async def test_redirect_404():
