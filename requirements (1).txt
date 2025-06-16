@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+
+httpx
+pytest
+pytest-cov
+coverage
